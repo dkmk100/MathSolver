@@ -37,7 +37,7 @@ static class Parser
 
     private static ExpNode ParseExpPlus(ParserState state)
     {
-        ExpNode left = ParseExpPow(state);
+        ExpNode left = ParseExpTimes(state);
         string[] ops = ["+", "-"];
         if (state.Peek().type == TokenType.Operator && ops.Contains(state.Peek().str))
         {

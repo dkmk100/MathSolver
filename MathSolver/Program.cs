@@ -15,8 +15,10 @@ class Program
         [
             new RewriteRule.CollapseNumbers()
         ]);
-
-        Console.WriteLine("input: " + tree.PrettyPrint());
+        Console.WriteLine("input text: ");
+        Console.Write(File.ReadAllText(args[0]));
+        Console.WriteLine();
+        Console.WriteLine("parsed: " + tree.PrettyPrint());
         Console.WriteLine("eval: " + eval.PrettyPrint());
     }
 }
