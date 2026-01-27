@@ -1,9 +1,11 @@
 //This is just a design document to help with actually implementing a parser
 
 ID: //sequence of letter characters or something IDK
-NUMBER: [0-9] ("." [0-9])?
+INT: [0-9]
+
 
 var: ID ("_" exp_leaf)? //subscripts
+number: INT ("." INT)?
 
 exp: exp_add
 exp_add: exp_add ("+" | "-") exp_times

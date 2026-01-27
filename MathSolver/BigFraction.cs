@@ -67,7 +67,7 @@ struct BigFraction
 
     public override string ToString()
     {
-        if (denominator.IsOne) { return numerator.ToString(); }
-        return numerator.ToString() + "/" + denominator.ToString();
+        if (denominator.IsOne) { return numerator.ToString("R"); }
+        return numerator.ToString("R") + "/" + denominator.ToString("R");
     }
 }

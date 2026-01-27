@@ -1,4 +1,5 @@
 using System.Diagnostics.Tracing;
+using System.Text;
 
 interface ExpNode
 {
@@ -6,62 +7,84 @@ interface ExpNode
     public int Precedence();
 }
 
-enum BOperator
-{
-    None, Plus, Minus, Times, Div, Pow
-}
-static class BOperatorExtensions
-{
-    public static string PrettyPrint(this BOperator self)
-    {
-        return self switch
-        {
-            BOperator.None => "ERROR",
-            BOperator.Pow => "^",
-            BOperator.Times => "*",
-            BOperator.Div => "/",
-            BOperator.Plus => "+",
-            BOperator.Minus => "-",
-            _ => "ERROR",
-        };
-    }
-    public static int Precedence(this BOperator self)
-    {
-        return self switch
-        {
-            BOperator.None => int.MaxValue,
-            BOperator.Pow => 100,
-            BOperator.Times => 200,
-            BOperator.Div => 200,
-            BOperator.Plus => 300,
-            BOperator.Minus => 300,
-            _ => int.MaxValue,
-        };
-    }
-}
-
-sealed record class ExpNode_BOp(BOperator op, ExpNode left, ExpNode right) : ExpNode
+sealed class ExpNode_Pow(ExpNode left, ExpNode right) : ExpNode
 {
     public string PrettyPrint()
     {
-        //TODO handle associativity
-        int p = op.Precedence();
+        int p = Precedence();
         string l = left.Precedence() > p ? left.PrettyPrint() : "(" + left.PrettyPrint() + ")";
         string r = right.Precedence() > p ? right.PrettyPrint() : "(" + right.PrettyPrint() + ")";
-        return l + " " + op.PrettyPrint() + " " + r;
+        return l + " ^ " + r;
     }
     public int Precedence()
     {
-        return op.Precedence();
+        return 300;
+    }
+}
+sealed class ExpNode_Times(ExpNode[] nodes) : ExpNode
+{
+
+    public string PrettyPrint()
+    {
+        int p = Precedence();
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < nodes.Length; i++)
+        {
+            var inner = nodes[i];
+            string str = inner.Precedence() > p ? inner.PrettyPrint() : "(" + inner.PrettyPrint() + ")";
+            sb.Append(str);
+            if (i < nodes.Length - 1)
+            {
+                sb.Append(" * ");
+            }
+        }
+        return sb.ToString();
+    }
+    public int Precedence()
+    {
+        return 200;
+    }
+}
+sealed class ExpNode_Plus(ExpNode[] nodes) : ExpNode
+{
+
+    public string PrettyPrint()
+    {
+        int p = Precedence();
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < nodes.Length; i++)
+        {
+            var inner = nodes[i];
+            string str = inner.Precedence() > p ? inner.PrettyPrint() : "(" + inner.PrettyPrint() + ")";
+            sb.Append(str);
+            if (i < nodes.Length - 1)
+            {
+                sb.Append(" + ");
+            }
+        }
+        return sb.ToString();
+    }
+    public int Precedence()
+    {
+        return 100;
     }
 }
 sealed record class ExpNode_Negate(ExpNode inner) : ExpNode
 {
     public string PrettyPrint()
     {
-        int p = Precedence();
-        string str = inner.Precedence() > p ? inner.PrettyPrint() : "(" + inner.PrettyPrint() + ")";
-        return "-" + str;
+        return "-(" + inner.PrettyPrint() + ")";
+    }
+    public int Precedence()
+    {
+        return 1000;
+    }
+}
+sealed record class ExpNode_Invert(ExpNode inner) : ExpNode
+{
+    public string PrettyPrint()
+    {
+        return "(" + inner.PrettyPrint() + ")^-1";
     }
     public int Precedence()
     {
@@ -76,6 +99,18 @@ sealed record class ExpNode_Num(BigFraction value) : ExpNode
     }
     public int Precedence()
     {
-        return 1000000;
+        return 1000;
+    }
+}
+
+sealed record class ExpNode_Var(string name, ExpNode? subscript) : ExpNode
+{
+    public string PrettyPrint()
+    {
+        return name + (subscript == null ? "" : "_(" + subscript.PrettyPrint() + ")");
+    }
+    public int Precedence()
+    {
+        return 1000;
     }
 }
