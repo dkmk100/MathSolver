@@ -1,0 +1,13 @@
+//This is just a design document to help with actually implementing a parser
+
+ID: //sequence of letter characters or something IDK
+NUMBER: [0-9] ("." [0-9])?
+
+var: ID ("_" exp_leaf)? //subscripts
+
+exp: exp_add
+exp_add: exp_add ("+" | "-") exp_times
+exp_times: exp_times ("*" | "/") exp_pow
+exp_pow: exp_neg "^" exp_neg //no exponent nesting to prevent ambiguity
+exp_neg: "-" exp_leaf | exp_leaf
+exp_leaf: "(" exp ")" | var | NUMBER
