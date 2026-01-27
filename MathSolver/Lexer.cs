@@ -29,6 +29,7 @@ static class Lexer
         ch = (char)reader.Peek();
         while (IsAlpha(ch))
         {
+            reader.Read();
             sb.Append(ch);
             ch = (char)reader.Peek();
         }
@@ -42,6 +43,7 @@ static class Lexer
         ch = (char)reader.Peek();
         while (IsDigit(ch))
         {
+            reader.Read();
             sb.Append(ch);
             ch = (char)reader.Peek();
         }

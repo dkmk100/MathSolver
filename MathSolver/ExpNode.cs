@@ -5,10 +5,20 @@ interface ExpNode
 {
     public string PrettyPrint();
     public int Precedence();
+    public IEnumerable<ExpNode> Children();
+    public void TransformChildren(Func<ExpNode, ExpNode> map);
+    public ExpNode CopyRecursive();
 }
 
-sealed class ExpNode_Pow(ExpNode left, ExpNode right) : ExpNode
+sealed class ExpNode_Pow : ExpNode
 {
+    public ExpNode left;
+    public ExpNode right;
+    public ExpNode_Pow(ExpNode left, ExpNode right)
+    {
+        this.left = left;
+        this.right = right;
+    }
     public string PrettyPrint()
     {
         int p = Precedence();
@@ -20,10 +30,28 @@ sealed class ExpNode_Pow(ExpNode left, ExpNode right) : ExpNode
     {
         return 300;
     }
+    public IEnumerable<ExpNode> Children()
+    {
+        yield return left;
+        yield return right;
+    }
+    public void TransformChildren(Func<ExpNode, ExpNode> map)
+    {
+        left = map(left);
+        right = map(right);
+    }
+    public ExpNode CopyRecursive()
+    {
+        return new ExpNode_Pow(left.CopyRecursive(), right.CopyRecursive());
+    }
 }
-sealed class ExpNode_Times(ExpNode[] nodes) : ExpNode
+sealed class ExpNode_Times : ExpNode
 {
-
+    public ExpNode[] nodes;
+    public ExpNode_Times(ExpNode[] nodes)
+    {
+        this.nodes = nodes;
+    }
     public string PrettyPrint()
     {
         int p = Precedence();
@@ -44,9 +72,37 @@ sealed class ExpNode_Times(ExpNode[] nodes) : ExpNode
     {
         return 200;
     }
+    public IEnumerable<ExpNode> Children()
+    {
+        foreach (var child in nodes)
+        {
+            yield return child;
+        }
+    }
+    public void TransformChildren(Func<ExpNode, ExpNode> map)
+    {
+        for (int i = 0; i < nodes.Length; i++)
+        {
+            nodes[i] = map(nodes[i]);
+        }
+    }
+    public ExpNode CopyRecursive()
+    {
+        ExpNode[] newNodes = new ExpNode[nodes.Length];
+        for (int i = 0; i < nodes.Length; i++)
+        {
+            newNodes[i] = nodes[i].CopyRecursive();
+        }
+        return new ExpNode_Times(newNodes);
+    }
 }
-sealed class ExpNode_Plus(ExpNode[] nodes) : ExpNode
+sealed class ExpNode_Plus : ExpNode
 {
+    public ExpNode[] nodes;
+    public ExpNode_Plus(ExpNode[] nodes)
+    {
+        this.nodes = nodes;
+    }
 
     public string PrettyPrint()
     {
@@ -68,9 +124,37 @@ sealed class ExpNode_Plus(ExpNode[] nodes) : ExpNode
     {
         return 100;
     }
+    public IEnumerable<ExpNode> Children()
+    {
+        foreach (var child in nodes)
+        {
+            yield return child;
+        }
+    }
+    public void TransformChildren(Func<ExpNode, ExpNode> map)
+    {
+        for (int i = 0; i < nodes.Length; i++)
+        {
+            nodes[i] = map(nodes[i]);
+        }
+    }
+    public ExpNode CopyRecursive()
+    {
+        ExpNode[] newNodes = new ExpNode[nodes.Length];
+        for (int i = 0; i < nodes.Length; i++)
+        {
+            newNodes[i] = nodes[i].CopyRecursive();
+        }
+        return new ExpNode_Plus(newNodes);
+    }
 }
-sealed record class ExpNode_Negate(ExpNode inner) : ExpNode
+sealed class ExpNode_Negate : ExpNode
 {
+    public ExpNode inner;
+    public ExpNode_Negate(ExpNode inner)
+    {
+        this.inner = inner;
+    }
     public string PrettyPrint()
     {
         return "-(" + inner.PrettyPrint() + ")";
@@ -79,9 +163,26 @@ sealed record class ExpNode_Negate(ExpNode inner) : ExpNode
     {
         return 1000;
     }
+    public IEnumerable<ExpNode> Children()
+    {
+        yield return inner;
+    }
+    public void TransformChildren(Func<ExpNode, ExpNode> map)
+    {
+        inner = map(inner);
+    }
+    public ExpNode CopyRecursive()
+    {
+        return new ExpNode_Negate(inner.CopyRecursive());
+    }
 }
-sealed record class ExpNode_Invert(ExpNode inner) : ExpNode
+sealed class ExpNode_Invert : ExpNode
 {
+    public ExpNode inner;
+    public ExpNode_Invert(ExpNode inner)
+    {
+        this.inner = inner;
+    }
     public string PrettyPrint()
     {
         return "(" + inner.PrettyPrint() + ")^-1";
@@ -90,9 +191,26 @@ sealed record class ExpNode_Invert(ExpNode inner) : ExpNode
     {
         return 1000;
     }
+    public IEnumerable<ExpNode> Children()
+    {
+        yield return inner;
+    }
+    public void TransformChildren(Func<ExpNode, ExpNode> map)
+    {
+        inner = map(inner);
+    }
+    public ExpNode CopyRecursive()
+    {
+        return new ExpNode_Invert(inner.CopyRecursive());
+    }
 }
-sealed record class ExpNode_Num(BigFraction value) : ExpNode
+sealed record class ExpNode_Num : ExpNode
 {
+    public BigFraction value;
+    public ExpNode_Num(BigFraction value)
+    {
+        this.value = value;
+    }
     public string PrettyPrint()
     {
         return value.ToString();
@@ -101,10 +219,29 @@ sealed record class ExpNode_Num(BigFraction value) : ExpNode
     {
         return 1000;
     }
+    public IEnumerable<ExpNode> Children()
+    {
+        return Enumerable.Empty<ExpNode>();
+    }
+    public void TransformChildren(Func<ExpNode, ExpNode> map)
+    {
+
+    }
+    public ExpNode CopyRecursive()
+    {
+        return new ExpNode_Num(value);
+    }
 }
 
-sealed record class ExpNode_Var(string name, ExpNode? subscript) : ExpNode
+sealed class ExpNode_Var : ExpNode
 {
+    public string name;
+    public ExpNode? subscript;
+    public ExpNode_Var(string name, ExpNode? subscript)
+    {
+        this.name = name;
+        this.subscript = subscript;
+    }
     public string PrettyPrint()
     {
         return name + (subscript == null ? "" : "_(" + subscript.PrettyPrint() + ")");
@@ -112,5 +249,23 @@ sealed record class ExpNode_Var(string name, ExpNode? subscript) : ExpNode
     public int Precedence()
     {
         return 1000;
+    }
+    public IEnumerable<ExpNode> Children()
+    {
+        if (subscript != null)
+        {
+            yield return subscript;
+        }
+    }
+    public void TransformChildren(Func<ExpNode, ExpNode> map)
+    {
+        if (subscript != null)
+        {
+            subscript = map(subscript);
+        }
+    }
+    public ExpNode CopyRecursive()
+    {
+        return new ExpNode_Var(name, subscript?.CopyRecursive());
     }
 }

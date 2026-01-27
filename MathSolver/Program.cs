@@ -11,6 +11,12 @@ class Program
         //TODO proper error handling.
         ExpNode tree = Parser.Parse(tokens);
 
-        Console.WriteLine(tree.PrettyPrint());
+        ExpNode eval = MathEngine.RewriteRecursive(tree.CopyRecursive(),
+        [
+            new RewriteRule.CollapseNumbers()
+        ]);
+
+        Console.WriteLine("input: " + tree.PrettyPrint());
+        Console.WriteLine("eval: " + eval.PrettyPrint());
     }
 }
