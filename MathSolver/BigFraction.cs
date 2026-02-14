@@ -24,6 +24,7 @@ struct BigFraction
             denominator *= -1;
             numerator *= -1;
         }
+        if (denominator.IsZero) { throw new DivideByZeroException(); }
 
         //simplify fraction
         //TODO should this be a separate method instead?
@@ -59,6 +60,7 @@ struct BigFraction
     }
     public static BigFraction operator /(BigFraction self, BigFraction operand)
     {
+        if (operand.IsZero) { throw new DivideByZeroException(); }
         return new BigFraction(self.numerator * operand.denominator, self.denominator * operand.numerator);
     }
 

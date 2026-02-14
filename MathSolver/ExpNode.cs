@@ -6,7 +6,7 @@ interface ExpNode
     public string PrettyPrint();
     public int Precedence();
     public IEnumerable<ExpNode> Children();
-    public void TransformChildren(Func<ExpNode, ExpNode> map);
+    public SolverResult TransformChildren(Func<ExpNode, bool, SolverResult> map, bool failEarly);
     public ExpNode CopyRecursive();
 }
 
@@ -35,10 +35,28 @@ sealed class ExpNode_Pow : ExpNode
         yield return left;
         yield return right;
     }
-    public void TransformChildren(Func<ExpNode, ExpNode> map)
+    public SolverResult TransformChildren(Func<ExpNode, bool, SolverResult> map, bool failEarly)
     {
-        left = map(left);
-        right = map(right);
+        SolverResult result = new SolverResult(this);
+        SolverResult l = map(left, failEarly);
+        result.MergeErrors(l);
+        if (!l.Success() && failEarly)
+        {
+            return result;
+        }
+        SolverResult r = map(right, failEarly);
+        result.MergeErrors(r);
+        if (!r.Success() && failEarly)
+        {
+            return result;
+        }
+
+        //actually apply transformations
+        left = l.result!;
+        right = r.result!;
+
+        //return value
+        return result;
     }
     public ExpNode CopyRecursive()
     {
@@ -79,12 +97,20 @@ sealed class ExpNode_Times : ExpNode
             yield return child;
         }
     }
-    public void TransformChildren(Func<ExpNode, ExpNode> map)
+    public SolverResult TransformChildren(Func<ExpNode, bool, SolverResult> map, bool failEarly)
     {
+        SolverResult result = new SolverResult(this);
         for (int i = 0; i < nodes.Length; i++)
         {
-            nodes[i] = map(nodes[i]);
+            SolverResult temp = map(nodes[i], failEarly);
+            result.MergeErrors(temp);
+            if (!temp.Success() && failEarly)
+            {
+                return result;
+            }
+            nodes[i] = temp.result!;
         }
+        return result;
     }
     public ExpNode CopyRecursive()
     {
@@ -131,12 +157,20 @@ sealed class ExpNode_Plus : ExpNode
             yield return child;
         }
     }
-    public void TransformChildren(Func<ExpNode, ExpNode> map)
+    public SolverResult TransformChildren(Func<ExpNode, bool, SolverResult> map, bool failEarly)
     {
+        SolverResult result = new SolverResult(this);
         for (int i = 0; i < nodes.Length; i++)
         {
-            nodes[i] = map(nodes[i]);
+            SolverResult temp = map(nodes[i], failEarly);
+            result.MergeErrors(temp);
+            if (!temp.Success() && failEarly)
+            {
+                return result;
+            }
+            nodes[i] = temp.result!;
         }
+        return result;
     }
     public ExpNode CopyRecursive()
     {
@@ -167,6 +201,18 @@ sealed class ExpNode_Negate : ExpNode
     {
         yield return inner;
     }
+    public SolverResult TransformChildren(Func<ExpNode, bool, SolverResult> map, bool failEarly)
+    {
+        SolverResult result = new SolverResult(this);
+        SolverResult temp = map(inner, failEarly);
+        result.MergeErrors(temp);
+        if (!temp.Success() && failEarly)
+        {
+            return result;
+        }
+        inner = temp.result!;
+        return result;
+    }
     public void TransformChildren(Func<ExpNode, ExpNode> map)
     {
         inner = map(inner);
@@ -195,9 +241,17 @@ sealed class ExpNode_Invert : ExpNode
     {
         yield return inner;
     }
-    public void TransformChildren(Func<ExpNode, ExpNode> map)
+    public SolverResult TransformChildren(Func<ExpNode, bool, SolverResult> map, bool failEarly)
     {
-        inner = map(inner);
+        SolverResult result = new SolverResult(this);
+        SolverResult temp = map(inner, failEarly);
+        result.MergeErrors(temp);
+        if (!temp.Success() && failEarly)
+        {
+            return result;
+        }
+        inner = temp.result!;
+        return result;
     }
     public ExpNode CopyRecursive()
     {
@@ -223,9 +277,11 @@ sealed record class ExpNode_Num : ExpNode
     {
         return Enumerable.Empty<ExpNode>();
     }
-    public void TransformChildren(Func<ExpNode, ExpNode> map)
+    public SolverResult TransformChildren(Func<ExpNode, bool, SolverResult> map, bool failEarly)
     {
-
+        SolverResult result = new SolverResult(this);
+        //nothing to do here lol, no children!
+        return result;
     }
     public ExpNode CopyRecursive()
     {
@@ -257,12 +313,20 @@ sealed class ExpNode_Var : ExpNode
             yield return subscript;
         }
     }
-    public void TransformChildren(Func<ExpNode, ExpNode> map)
+    public SolverResult TransformChildren(Func<ExpNode, bool, SolverResult> map, bool failEarly)
     {
+        SolverResult result = new SolverResult(this);
         if (subscript != null)
         {
-            subscript = map(subscript);
+            SolverResult temp = map(subscript, failEarly);
+            result.MergeErrors(temp);
+            if (!temp.Success() && failEarly)
+            {
+                return result;
+            }
+            subscript = temp.result!;
         }
+        return result;
     }
     public ExpNode CopyRecursive()
     {
