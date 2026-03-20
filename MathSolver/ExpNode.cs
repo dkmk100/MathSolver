@@ -310,7 +310,7 @@ sealed class ExpNode_Invert : ExpNode
         }
         else
         {
-            return new ExpNode_Negate(inner);
+            return new ExpNode_Invert(inner);
         }
     }
     public string PrettyPrint()
