@@ -27,6 +27,18 @@ interface RewriteRule
                     return new SolverResult<ExpNode>(node, false, false);
                 }
             }
+            if (node is ExpNode_Negate neg)
+            {
+                if (neg.inner is ExpNode_Num num)
+                {
+                    var val = new BigFraction(-1 * num.value.Numerator(), num.value.Denominator());
+                    return new SolverResult<ExpNode>(new ExpNode_Num(val), true, false);
+                }
+                else
+                {
+                    return new SolverResult<ExpNode>(node, false, false);
+                }
+            }
             else if (node is ExpNode_Times t)
             {
                 BigFraction val = new BigFraction(1, 1);
@@ -63,7 +75,7 @@ interface RewriteRule
         }
         public bool CanApply(ExpNode node)
         {
-            return node is ExpNode_Times || node is ExpNode_Plus || node is ExpNode_Invert;
+            return node is ExpNode_Times || node is ExpNode_Plus || node is ExpNode_Invert || node is ExpNode_Negate;
         }
     }
     class DistributeTimes : RewriteRule
