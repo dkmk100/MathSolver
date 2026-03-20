@@ -15,17 +15,11 @@ class Program
         Console.WriteLine();
         Console.WriteLine("parsed: " + tree.PrettyPrint());
 
-        RewriteRule[][] simplifyRules =
+        RewriteRule[] simplifyRules =
         [
-            //initial simplification
-            [
-                new RewriteRule.CollapseNumbers(),
-                new RewriteRule.DistributeTimes(),
-            ],
-            //continue rewrite after distributing
-            [
-                new RewriteRule.CollapseSymbolic(),
-            ]
+            new RewriteRule.CollapseNumbers(),
+            new RewriteRule.DistributeTimes(),
+            new RewriteRule.CollapseSymbolic(),
         ];
 
         if (tree is RootNode_Simplify simplify)

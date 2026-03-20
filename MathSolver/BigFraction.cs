@@ -64,6 +64,15 @@ struct BigFraction
         return new BigFraction(self.numerator * operand.denominator, self.denominator * operand.numerator);
     }
 
+    public static bool operator ==(BigFraction self, BigFraction other)
+    {
+        return self.numerator * other.denominator == other.numerator * self.denominator;
+    }
+    public static bool operator !=(BigFraction self, BigFraction other)
+    {
+        return self.numerator * other.denominator != other.numerator * self.denominator;
+    }
+
     public bool IsZero { get { return numerator == 0; } }
     public bool IsOne { get { return numerator == denominator; } }
     public bool IsWholeNum { get { return denominator.IsOne; } }

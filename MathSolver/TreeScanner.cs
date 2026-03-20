@@ -9,7 +9,7 @@ interface TreeScanner<T> where T : class
         {
             dict = new Dictionary<ExpNode, T>();
         }
-        SolverResult<Dictionary<ExpNode, T>> result = new SolverResult<Dictionary<ExpNode, T>>(dict);
+        SolverResult<Dictionary<ExpNode, T>> result = new SolverResult<Dictionary<ExpNode, T>>(dict, false, false);
         Stack<(ExpNode, T?, T?)> stack = new Stack<(ExpNode, T?, T?)>();//works because T is a reference type
         stack.Push((node, null, null));
         while (stack.Count() > 0)
@@ -19,7 +19,7 @@ interface TreeScanner<T> where T : class
             {
                 //this is the initial visit
                 SolverResult<T> temp = Scan(target);
-                result.MergeErrors(temp);
+                result.MergeChildStatus(temp);
                 if (temp.Success())
                 {
                     //push visited version to stack

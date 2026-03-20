@@ -34,15 +34,15 @@ sealed class ExpNode_Pow : ExpNode
     }
     public SolverResult<ExpNode> TransformChildren(Func<ExpNode, bool, SolverResult<ExpNode>> map, bool failEarly)
     {
-        SolverResult<ExpNode> result = new SolverResult<ExpNode>(this);
+        SolverResult<ExpNode> result = new SolverResult<ExpNode>(this, false, false);
         SolverResult<ExpNode> l = map(left, failEarly);
-        result.MergeErrors(l);
+        result.MergeChildStatus(l);
         if (!l.Success() && failEarly)
         {
             return result;
         }
         SolverResult<ExpNode> r = map(right, failEarly);
-        result.MergeErrors(r);
+        result.MergeChildStatus(r);
         if (!r.Success() && failEarly)
         {
             return result;
@@ -122,11 +122,11 @@ sealed class ExpNode_Times : ExpNode
     }
     public SolverResult<ExpNode> TransformChildren(Func<ExpNode, bool, SolverResult<ExpNode>> map, bool failEarly)
     {
-        SolverResult<ExpNode> result = new SolverResult<ExpNode>(this);
+        SolverResult<ExpNode> result = new SolverResult<ExpNode>(this, false, false);
         for (int i = 0; i < nodes.Length; i++)
         {
             SolverResult<ExpNode> temp = map(nodes[i], failEarly);
-            result.MergeErrors(temp);
+            result.MergeChildStatus(temp);
             if (temp.Success())
             {
                 nodes[i] = temp.result!;
@@ -213,11 +213,11 @@ sealed class ExpNode_Plus : ExpNode
     }
     public SolverResult<ExpNode> TransformChildren(Func<ExpNode, bool, SolverResult<ExpNode>> map, bool failEarly)
     {
-        SolverResult<ExpNode> result = new SolverResult<ExpNode>(this);
+        SolverResult<ExpNode> result = new SolverResult<ExpNode>(this, false, false);
         for (int i = 0; i < nodes.Length; i++)
         {
             SolverResult<ExpNode> temp = map(nodes[i], failEarly);
-            result.MergeErrors(temp);
+            result.MergeChildStatus(temp);
             if (temp.Success())
             {
                 nodes[i] = temp.result!;
@@ -272,9 +272,9 @@ sealed class ExpNode_Negate : ExpNode
     }
     public SolverResult<ExpNode> TransformChildren(Func<ExpNode, bool, SolverResult<ExpNode>> map, bool failEarly)
     {
-        SolverResult<ExpNode> result = new SolverResult<ExpNode>(this);
+        SolverResult<ExpNode> result = new SolverResult<ExpNode>(this, false, false);
         SolverResult<ExpNode> temp = map(inner, failEarly);
-        result.MergeErrors(temp);
+        result.MergeChildStatus(temp);
         if (temp.Success())
         {
             inner = temp.result!;
@@ -327,9 +327,9 @@ sealed class ExpNode_Invert : ExpNode
     }
     public SolverResult<ExpNode> TransformChildren(Func<ExpNode, bool, SolverResult<ExpNode>> map, bool failEarly)
     {
-        SolverResult<ExpNode> result = new SolverResult<ExpNode>(this);
+        SolverResult<ExpNode> result = new SolverResult<ExpNode>(this, false, false);
         SolverResult<ExpNode> temp = map(inner, failEarly);
-        result.MergeErrors(temp);
+        result.MergeChildStatus(temp);
         if (temp.Success())
         {
             inner = temp.result!;
@@ -366,7 +366,7 @@ sealed record class ExpNode_Num : ExpNode
     }
     public SolverResult<ExpNode> TransformChildren(Func<ExpNode, bool, SolverResult<ExpNode>> map, bool failEarly)
     {
-        SolverResult<ExpNode> result = new SolverResult<ExpNode>(this);
+        SolverResult<ExpNode> result = new SolverResult<ExpNode>(this, false, false);
         //nothing to do here lol, no children!
         return result;
     }
@@ -407,11 +407,11 @@ sealed class ExpNode_Var : ExpNode
     }
     public SolverResult<ExpNode> TransformChildren(Func<ExpNode, bool, SolverResult<ExpNode>> map, bool failEarly)
     {
-        SolverResult<ExpNode> result = new SolverResult<ExpNode>(this);
+        SolverResult<ExpNode> result = new SolverResult<ExpNode>(this, false, false);
         if (subscript != null)
         {
             SolverResult<ExpNode> temp = map(subscript, failEarly);
-            result.MergeErrors(temp);
+            result.MergeChildStatus(temp);
             if (temp.Success())
             {
                 subscript = temp.result!;

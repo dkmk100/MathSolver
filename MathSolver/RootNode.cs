@@ -37,11 +37,11 @@ sealed class RootNode_Solve : RootNode
 
     public SolverResult<RootNode> TransformChildren(Func<ExpNode, bool, SolverResult<ExpNode>> map, bool failEarly)
     {
-        SolverResult<RootNode> result = new SolverResult<RootNode>(this);
+        SolverResult<RootNode> result = new SolverResult<RootNode>(this, false, false);
         SolverResult<ExpNode> temp;
 
         temp = map(left, failEarly);
-        result.MergeErrors(temp);
+        result.MergeChildStatus(temp);
         if (temp.Success())
         {
             left = temp.result!;
@@ -52,7 +52,7 @@ sealed class RootNode_Solve : RootNode
         }
 
         temp = map(right, failEarly);
-        result.MergeErrors(temp);
+        result.MergeChildStatus(temp);
         if (temp.Success())
         {
             right = temp.result!;
@@ -95,9 +95,9 @@ sealed class RootNode_Simplify : RootNode
 
     public SolverResult<RootNode> TransformChildren(Func<ExpNode, bool, SolverResult<ExpNode>> map, bool failEarly)
     {
-        SolverResult<RootNode> result = new SolverResult<RootNode>(this);
+        SolverResult<RootNode> result = new SolverResult<RootNode>(this, false, false);
         SolverResult<ExpNode> temp = map(inner, failEarly);
-        result.MergeErrors(temp);
+        result.MergeChildStatus(temp);
         if (temp.Success())
         {
             inner = temp.result!;

@@ -26,17 +26,18 @@ class EquationSolver
         SolverResult<Dictionary<ExpNode, HashSet<string>>> varScan = ((TreeScanner<HashSet<string>>)finder).ScanRecursive(root.left, true);
         if (!varScan.Success())
         {
-            return new SolverResult<ExpNode>().MergeErrors(varScan);
+            return new SolverResult<ExpNode>().MergePeerStatus(varScan);
         }
         //scan right tree in on same dictionary, prevents annoying duplication later
         varScan = ((TreeScanner<HashSet<string>>)finder).ScanRecursive(root.right, true, varScan.result!);
         if (!varScan.Success())
         {
-            return new SolverResult<ExpNode>().MergeErrors(varScan);
+            return new SolverResult<ExpNode>().MergePeerStatus(varScan);
         }
         Dictionary<ExpNode, HashSet<string>> vars = varScan.result!;
 
         //some (temporary) debug info
+        /*
         Console.WriteLine("Target variable: {0}", root.var);
         Console.WriteLine("Expression vars breakdown: ");
         PrintAnnotations(root.left, vars, (names) =>
@@ -49,6 +50,7 @@ class EquationSolver
             }
             return builder.ToString();
         });
+        */
 
         bool inLeft = vars[root.left].Contains(root.var);
         bool inRight = vars[root.right].Contains(root.var);
@@ -81,7 +83,7 @@ class EquationSolver
         if (source is ExpNode_Var v)
         {
             //equation is solved
-            return new SolverResult<ExpNode>(dest);
+            return new SolverResult<ExpNode>(dest, false, false);
         }
         else if (source is ExpNode_Plus plus)
         {

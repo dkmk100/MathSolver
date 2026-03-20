@@ -1,10 +1,14 @@
 struct SolverResult<T> where T : class
 {
     public T? result { get; private set; }
+    public bool transformed;
+    public bool transformedChildren;
     public readonly List<SolverError> errors;
-    public SolverResult(T val)
+    public SolverResult(T val, bool transformed, bool transformedChildren)
     {
         this.result = val;
+        this.transformed = transformed;
+        this.transformedChildren = transformedChildren;
         this.errors = new List<SolverError>();
     }
     public SolverResult(SolverError error)
@@ -23,13 +27,41 @@ struct SolverResult<T> where T : class
     {
         return result != null;
     }
-    public SolverResult<T> MergeErrors<Q>(SolverResult<Q> other) where Q : class
+    public SolverResult<T> MergePeerStatus<Q>(SolverResult<Q> other) where Q : class
     {
+        //propagate error status
         errors.AddRange(other.errors);
         if (other.result == null)
         {
             result = null;
         }
+
+        //also propagate transformation status
+        if (other.transformed)
+        {
+            this.transformed = true;
+        }
+        if (other.transformedChildren)
+        {
+            this.transformedChildren = true;
+        }
+        return this;
+    }
+    public SolverResult<T> MergeChildStatus<Q>(SolverResult<Q> other) where Q : class
+    {
+        //propagate error status
+        errors.AddRange(other.errors);
+        if (other.result == null)
+        {
+            result = null;
+        }
+
+        //also propagate transformation status
+        if (other.transformed || other.transformedChildren)
+        {
+            this.transformedChildren = true;
+        }
+
         return this;
     }
 }
