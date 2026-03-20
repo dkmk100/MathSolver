@@ -35,7 +35,7 @@ static class Parser
         LexToken token = state.Pop();
         if (token.type != TokenType.Identifier)
         {
-            throw new Exception("Parse error");
+            throw new Exception("Parse error: expected identifier");
         }
         if (token.str == "Solve")
         {
@@ -117,7 +117,7 @@ static class Parser
                 }
                 else
                 {
-                    throw new Exception("Parse error");
+                    throw new Exception("Internal parse error");
                 }
             }
             return new ExpNode_Plus(inner.ToArray());
@@ -152,7 +152,7 @@ static class Parser
                 }
                 else
                 {
-                    throw new Exception("Parse error");
+                    throw new Exception("Internal parse error");
                 }
             }
             return new ExpNode_Times(inner.ToArray());
@@ -198,7 +198,7 @@ static class Parser
             ExpNode node = ParseExpression(state);
             if (state.Peek().type != TokenType.CloseParen)
             {
-                throw new Exception("Parse error");
+                throw new Exception("Parse error: expected ')'");
             }
             state.Pop();
             return node;
@@ -213,7 +213,7 @@ static class Parser
                 LexToken other = state.Pop();
                 if (other.type != TokenType.Number)
                 {
-                    throw new Exception("Parse error");
+                    throw new Exception("Parse error: expected number");
                 }
                 BigInteger dec = BigInteger.Parse(other.str);
                 BigInteger denominator = BigInteger.Pow(10, other.str.Length);
@@ -230,7 +230,7 @@ static class Parser
         {
             return ParseVar(state);
         }
-        throw new Exception("Parse error");
+        throw new Exception("Parse error: invalid expression");
     }
 
     private static ExpNode ParseVar(ParserState state)
@@ -238,7 +238,7 @@ static class Parser
         LexToken next = state.Pop();
         if (next.type != TokenType.Identifier)
         {
-            throw new Exception("Parse error");
+            throw new Exception("Parse error: expected identifier");
         }
         ExpNode? subscript = null;
         if (state.Peek().type == TokenType.Subscript)

@@ -12,6 +12,7 @@
             // If you have changed target frameworks, make sure to update the program path.
             "program": "${workspaceFolder}/MathSolver/bin/Debug/net10.0/MathSolver.dll",
             "args": [
+                "file",
                 "data/input.txt"
             ],
             "cwd": "${workspaceFolder}/MathSolver/bin/Debug/net10.0",

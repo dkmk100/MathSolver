@@ -1,18 +1,60 @@
 ﻿// See https://aka.ms/new-console-template for more information
 
+using System.Text;
+
 class Program
 {
-    public static void Main(string[] args)
+    public static int Main(string[] args)
     {
-        TextReader reader = new StreamReader(args[0]);
+        string mode = args[0];
+        Stream reader;
+        if (mode == "file")
+        {
+            reader = new FileStream(args[1], FileMode.Open);
+        }
+        else if (mode == "console")
+        {
+            if (args[1].StartsWith('"'))
+            {
+                if (args[1].EndsWith('"'))
+                {
+                    reader = new MemoryStream(Encoding.UTF8.GetBytes(args[1].Substring(1, args[1].Length - 2)));
+                }
+                else
+                {
+                    Console.Error.WriteLine("invalid input string: {0}", args[1]);
+                    return -1;
+                }
+            }
+            else
+            {
+                reader = new MemoryStream(Encoding.UTF8.GetBytes(args[1]));
+            }
+        }
+        else
+        {
+            Console.Error.WriteLine("unknown input mode: " + mode);
+            return -1;
+        }
 
-        List<LexToken> tokens = Lexer.Tokenize(reader);
-
-        //TODO proper error handling.
-        RootNode tree = Parser.Parse(tokens);
-        Console.WriteLine("input text: ");
-        Console.Write(File.ReadAllText(args[0]));
+        Console.Write("input text: ");
+        Console.Write(new StreamReader(reader).ReadToEnd());
+        reader.Seek(0, SeekOrigin.Begin);
         Console.WriteLine();
+        List<LexToken> tokens = Lexer.Tokenize(new StreamReader(reader));
+
+        //TODO better error handling.
+        RootNode tree;
+        try
+        {
+            tree = Parser.Parse(tokens);
+        }
+        catch (Exception e)
+        {
+            Console.Error.WriteLine("parsing failed with error: ");
+            Console.WriteLine(e.Message);
+            return -1;
+        }
         Console.WriteLine("parsed: " + tree.PrettyPrint());
 
         RewriteRule[] simplifyRules =
@@ -38,6 +80,7 @@ class Program
                 {
                     Console.WriteLine(err.PrettyPrint());
                 }
+                return -1;
             }
 
         }
@@ -60,6 +103,7 @@ class Program
                     {
                         Console.WriteLine(err.PrettyPrint());
                     }
+                    return -1;
                 }
             }
             else
@@ -69,12 +113,14 @@ class Program
                 {
                     Console.WriteLine(err.PrettyPrint());
                 }
+                return -1;
             }
         }
         else
         {
             Console.Error.WriteLine("unknown operation!");
-            throw new Exception();
+            return -1;
         }
+        return 0;
     }
 }

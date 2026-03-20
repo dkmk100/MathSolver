@@ -32,7 +32,7 @@ sealed class RootNode_Solve : RootNode
 
     public string PrettyPrint()
     {
-        return "Solve{" + left.PrettyPrint() + "=" + right.PrettyPrint() + "," + var + "}";
+        return "Solve{" + left.PrettyPrint() + " = " + right.PrettyPrint() + ", " + var + "}";
     }
 
     public SolverResult<RootNode> TransformChildren(Func<ExpNode, bool, SolverResult<ExpNode>> map, bool failEarly)
