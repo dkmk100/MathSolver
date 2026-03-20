@@ -12,4 +12,5 @@ class LexToken
 enum TokenType
 {
     None, Identifier, Number, Operator, OpenParen, CloseParen, Subscript, Dot,
+    OpenBracket, CloseBracket, Comma, Equals,
 }

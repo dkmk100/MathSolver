@@ -1,13 +1,10 @@
 using System.Diagnostics.Tracing;
+using System.Runtime.InteropServices.Swift;
 using System.Text;
 
-interface ExpNode
+interface ExpNode : TreeNode<ExpNode, ExpNode>
 {
-    public string PrettyPrint();
-    public int Precedence();
-    public IEnumerable<ExpNode> Children();
-    public SolverResult TransformChildren(Func<ExpNode, bool, SolverResult> map, bool failEarly);
-    public ExpNode CopyRecursive();
+    //methods are inherited from TreeNode
 }
 
 sealed class ExpNode_Pow : ExpNode
@@ -35,16 +32,16 @@ sealed class ExpNode_Pow : ExpNode
         yield return left;
         yield return right;
     }
-    public SolverResult TransformChildren(Func<ExpNode, bool, SolverResult> map, bool failEarly)
+    public SolverResult<ExpNode> TransformChildren(Func<ExpNode, bool, SolverResult<ExpNode>> map, bool failEarly)
     {
-        SolverResult result = new SolverResult(this);
-        SolverResult l = map(left, failEarly);
+        SolverResult<ExpNode> result = new SolverResult<ExpNode>(this);
+        SolverResult<ExpNode> l = map(left, failEarly);
         result.MergeErrors(l);
         if (!l.Success() && failEarly)
         {
             return result;
         }
-        SolverResult r = map(right, failEarly);
+        SolverResult<ExpNode> r = map(right, failEarly);
         result.MergeErrors(r);
         if (!r.Success() && failEarly)
         {
@@ -69,6 +66,32 @@ sealed class ExpNode_Times : ExpNode
     public ExpNode_Times(ExpNode[] nodes)
     {
         this.nodes = nodes;
+    }
+    //collapse inner expressions, used when transforming trees
+    public static ExpNode Collapsed(List<ExpNode> nodes)
+    {
+        if (nodes.Count == 1)
+        {
+            //skip unnecessary wrapper
+            return nodes[0];
+        }
+        List<ExpNode> targets = new List<ExpNode>();
+        foreach (var inner in nodes)
+        {
+            //collapse only one layer; anything deeper is the responsibility of whatever build those nodes
+            if (inner is ExpNode_Times nested)
+            {
+                targets.Add(nested);
+            }
+        }
+        foreach (var inner in targets)
+        {
+            //transform node list
+            //TODO switch to indexes to make this less painfully slow
+            nodes.Remove(inner);
+            nodes.AddRange(inner.Children());
+        }
+        return new ExpNode_Times(nodes.ToArray());
     }
     public string PrettyPrint()
     {
@@ -97,18 +120,21 @@ sealed class ExpNode_Times : ExpNode
             yield return child;
         }
     }
-    public SolverResult TransformChildren(Func<ExpNode, bool, SolverResult> map, bool failEarly)
+    public SolverResult<ExpNode> TransformChildren(Func<ExpNode, bool, SolverResult<ExpNode>> map, bool failEarly)
     {
-        SolverResult result = new SolverResult(this);
+        SolverResult<ExpNode> result = new SolverResult<ExpNode>(this);
         for (int i = 0; i < nodes.Length; i++)
         {
-            SolverResult temp = map(nodes[i], failEarly);
+            SolverResult<ExpNode> temp = map(nodes[i], failEarly);
             result.MergeErrors(temp);
-            if (!temp.Success() && failEarly)
+            if (temp.Success())
+            {
+                nodes[i] = temp.result!;
+            }
+            else if (failEarly)
             {
                 return result;
             }
-            nodes[i] = temp.result!;
         }
         return result;
     }
@@ -125,9 +151,37 @@ sealed class ExpNode_Times : ExpNode
 sealed class ExpNode_Plus : ExpNode
 {
     public ExpNode[] nodes;
+
     public ExpNode_Plus(ExpNode[] nodes)
     {
         this.nodes = nodes;
+    }
+
+    //collapse inner plus expressions, used when transforming trees
+    public static ExpNode Collapsed(List<ExpNode> nodes)
+    {
+        if (nodes.Count == 1)
+        {
+            //skip unnecessary wrapper
+            return nodes[0];
+        }
+        List<ExpNode> sums = new List<ExpNode>();
+        foreach (var inner in nodes)
+        {
+            //collapse only one layer; anything deeper is the responsibility of whatever build those nodes
+            if (inner is ExpNode_Plus p)
+            {
+                sums.Add(p);
+            }
+        }
+        foreach (var inner in sums)
+        {
+            //transform node list
+            //TODO switch to indexes to make this less painfully slow
+            nodes.Remove(inner);
+            nodes.AddRange(inner.Children());
+        }
+        return new ExpNode_Plus(nodes.ToArray());
     }
 
     public string PrettyPrint()
@@ -157,18 +211,21 @@ sealed class ExpNode_Plus : ExpNode
             yield return child;
         }
     }
-    public SolverResult TransformChildren(Func<ExpNode, bool, SolverResult> map, bool failEarly)
+    public SolverResult<ExpNode> TransformChildren(Func<ExpNode, bool, SolverResult<ExpNode>> map, bool failEarly)
     {
-        SolverResult result = new SolverResult(this);
+        SolverResult<ExpNode> result = new SolverResult<ExpNode>(this);
         for (int i = 0; i < nodes.Length; i++)
         {
-            SolverResult temp = map(nodes[i], failEarly);
+            SolverResult<ExpNode> temp = map(nodes[i], failEarly);
             result.MergeErrors(temp);
-            if (!temp.Success() && failEarly)
+            if (temp.Success())
+            {
+                nodes[i] = temp.result!;
+            }
+            else if (failEarly)
             {
                 return result;
             }
-            nodes[i] = temp.result!;
         }
         return result;
     }
@@ -189,6 +246,18 @@ sealed class ExpNode_Negate : ExpNode
     {
         this.inner = inner;
     }
+    //collapse inner expressions, used when transforming trees
+    public static ExpNode Collapsed(ExpNode inner)
+    {
+        if (inner is ExpNode_Negate n)
+        {
+            return n.inner;
+        }
+        else
+        {
+            return new ExpNode_Negate(inner);
+        }
+    }
     public string PrettyPrint()
     {
         return "-(" + inner.PrettyPrint() + ")";
@@ -201,16 +270,19 @@ sealed class ExpNode_Negate : ExpNode
     {
         yield return inner;
     }
-    public SolverResult TransformChildren(Func<ExpNode, bool, SolverResult> map, bool failEarly)
+    public SolverResult<ExpNode> TransformChildren(Func<ExpNode, bool, SolverResult<ExpNode>> map, bool failEarly)
     {
-        SolverResult result = new SolverResult(this);
-        SolverResult temp = map(inner, failEarly);
+        SolverResult<ExpNode> result = new SolverResult<ExpNode>(this);
+        SolverResult<ExpNode> temp = map(inner, failEarly);
         result.MergeErrors(temp);
-        if (!temp.Success() && failEarly)
+        if (temp.Success())
+        {
+            inner = temp.result!;
+        }
+        else if (failEarly)
         {
             return result;
         }
-        inner = temp.result!;
         return result;
     }
     public void TransformChildren(Func<ExpNode, ExpNode> map)
@@ -229,6 +301,18 @@ sealed class ExpNode_Invert : ExpNode
     {
         this.inner = inner;
     }
+    //collapse inner expressions, used when transforming trees
+    public static ExpNode Collapsed(ExpNode inner)
+    {
+        if (inner is ExpNode_Invert nested)
+        {
+            return nested.inner;
+        }
+        else
+        {
+            return new ExpNode_Negate(inner);
+        }
+    }
     public string PrettyPrint()
     {
         return "(" + inner.PrettyPrint() + ")^-1";
@@ -241,16 +325,19 @@ sealed class ExpNode_Invert : ExpNode
     {
         yield return inner;
     }
-    public SolverResult TransformChildren(Func<ExpNode, bool, SolverResult> map, bool failEarly)
+    public SolverResult<ExpNode> TransformChildren(Func<ExpNode, bool, SolverResult<ExpNode>> map, bool failEarly)
     {
-        SolverResult result = new SolverResult(this);
-        SolverResult temp = map(inner, failEarly);
+        SolverResult<ExpNode> result = new SolverResult<ExpNode>(this);
+        SolverResult<ExpNode> temp = map(inner, failEarly);
         result.MergeErrors(temp);
-        if (!temp.Success() && failEarly)
+        if (temp.Success())
+        {
+            inner = temp.result!;
+        }
+        else if (failEarly)
         {
             return result;
         }
-        inner = temp.result!;
         return result;
     }
     public ExpNode CopyRecursive()
@@ -277,9 +364,9 @@ sealed record class ExpNode_Num : ExpNode
     {
         return Enumerable.Empty<ExpNode>();
     }
-    public SolverResult TransformChildren(Func<ExpNode, bool, SolverResult> map, bool failEarly)
+    public SolverResult<ExpNode> TransformChildren(Func<ExpNode, bool, SolverResult<ExpNode>> map, bool failEarly)
     {
-        SolverResult result = new SolverResult(this);
+        SolverResult<ExpNode> result = new SolverResult<ExpNode>(this);
         //nothing to do here lol, no children!
         return result;
     }
@@ -297,6 +384,11 @@ sealed class ExpNode_Var : ExpNode
     {
         this.name = name;
         this.subscript = subscript;
+        //TODO figure out if this support can be added or if I should remove this...
+        if (subscript != null)
+        {
+            throw new NotImplementedException();
+        }
     }
     public string PrettyPrint()
     {
@@ -313,18 +405,22 @@ sealed class ExpNode_Var : ExpNode
             yield return subscript;
         }
     }
-    public SolverResult TransformChildren(Func<ExpNode, bool, SolverResult> map, bool failEarly)
+    public SolverResult<ExpNode> TransformChildren(Func<ExpNode, bool, SolverResult<ExpNode>> map, bool failEarly)
     {
-        SolverResult result = new SolverResult(this);
+        SolverResult<ExpNode> result = new SolverResult<ExpNode>(this);
         if (subscript != null)
         {
-            SolverResult temp = map(subscript, failEarly);
+            SolverResult<ExpNode> temp = map(subscript, failEarly);
             result.MergeErrors(temp);
-            if (!temp.Success() && failEarly)
+            if (temp.Success())
+            {
+                subscript = temp.result!;
+            }
+            else if (failEarly)
             {
                 return result;
             }
-            subscript = temp.result!;
+
         }
         return result;
     }

@@ -1,8 +1,8 @@
-struct SolverResult
+struct SolverResult<T> where T : class
 {
-    public ExpNode? result { get; private set; }
+    public T? result { get; private set; }
     public readonly List<SolverError> errors;
-    public SolverResult(ExpNode val)
+    public SolverResult(T val)
     {
         this.result = val;
         this.errors = new List<SolverError>();
@@ -23,12 +23,13 @@ struct SolverResult
     {
         return result != null;
     }
-    public void MergeErrors(SolverResult other)
+    public SolverResult<T> MergeErrors<Q>(SolverResult<Q> other) where Q : class
     {
         errors.AddRange(other.errors);
         if (other.result == null)
         {
             result = null;
         }
+        return this;
     }
 }

@@ -65,6 +65,7 @@ struct BigFraction
     }
 
     public bool IsZero { get { return numerator == 0; } }
+    public bool IsOne { get { return numerator == denominator; } }
     public bool IsWholeNum { get { return denominator.IsOne; } }
 
     public override string ToString()

@@ -25,10 +25,68 @@ static class Parser
             return tokens[id - 1];
         }
     }
-    public static ExpNode Parse(List<LexToken> tokens)
+    public static RootNode Parse(List<LexToken> tokens)
     {
         ParserState state = new ParserState(tokens);
-        return ParseExpression(state);
+        return ParseRoot(state);
+    }
+    private static RootNode ParseRoot(ParserState state)
+    {
+        LexToken token = state.Pop();
+        if (token.type != TokenType.Identifier)
+        {
+            throw new Exception("Parse error");
+        }
+        if (token.str == "Solve")
+        {
+            if (state.Pop().type != TokenType.OpenBracket)
+            {
+                throw new Exception("Parse error: expected '{'");
+            }
+
+            ExpNode left = ParseExpression(state);
+            if (state.Pop().type != TokenType.Equals)
+            {
+                throw new Exception("Parse error: expected '='");
+            }
+            ExpNode right = ParseExpression(state);
+
+            if (state.Pop().type != TokenType.Comma)
+            {
+                throw new Exception("Parse error: expected ','");
+            }
+            var target = state.Pop();
+            if (target.type != TokenType.Identifier)
+            {
+                throw new Exception("Parse error: expected identifier");
+            }
+
+            if (state.Pop().type != TokenType.CloseBracket)
+            {
+                throw new Exception("Parse error: expected '}'");
+            }
+
+            return new RootNode_Solve(left, right, target.str);
+        }
+        else if (token.str == "Simplify")
+        {
+            if (state.Pop().type != TokenType.OpenBracket)
+            {
+                throw new Exception("Parse error: expected '{'");
+            }
+
+            ExpNode inner = ParseExpression(state);
+
+            if (state.Pop().type != TokenType.CloseBracket)
+            {
+                throw new Exception("Parse error: expected '}'");
+            }
+            return new RootNode_Simplify(inner);
+        }
+        else
+        {
+            throw new Exception("Parse error: unknown instruction");
+        }
     }
     private static ExpNode ParseExpression(ParserState state)
     {

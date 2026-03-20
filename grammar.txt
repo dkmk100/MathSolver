@@ -1,15 +1,22 @@
 //This is just a design document to help with actually implementing a parser
 
+
+
 ID: //sequence of letter characters or something IDK
 INT: [0-9]
 
 
-var: ID ("_" exp_leaf)? //subscripts
+var: ID ("_" subscript)? //subscripts
 number: INT ("." INT)?
+
+root: solve | simplify
+solve: "Solve" "{" exp "=" exp "," var "}"
+simplify: "Simplify" "{" exp "}"
 
 exp: exp_add
 exp_add: exp_add ("+" | "-") exp_times
 exp_times: exp_times ("*" | "/") exp_pow
 exp_pow: exp_neg "^" exp_neg //no exponent nesting to prevent ambiguity
 exp_neg: "-" exp_leaf | exp_leaf
-exp_leaf: "(" exp ")" | var | NUMBER
+exp_leaf: "(" exp ")" | subscript
+subscript: var | NUMBER

@@ -84,6 +84,22 @@ static class Lexer
             {
                 tokens.Add(new LexToken(ch.ToString(), TokenType.CloseParen));
             }
+            else if (ch == '{')
+            {
+                tokens.Add(new LexToken(ch.ToString(), TokenType.OpenBracket));
+            }
+            else if (ch == '}')
+            {
+                tokens.Add(new LexToken(ch.ToString(), TokenType.CloseBracket));
+            }
+            else if (ch == ',')
+            {
+                tokens.Add(new LexToken(ch.ToString(), TokenType.Comma));
+            }
+            else if (ch == '=')
+            {
+                tokens.Add(new LexToken(ch.ToString(), TokenType.Equals));
+            }
             else if (whitespace.Contains(ch))
             {
                 //skip whitespace
