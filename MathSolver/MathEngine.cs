@@ -24,16 +24,22 @@ static class MathEngine
     }
 
     //this is not very performant, but works as a simple starting point
-    public static SolverResult<ExpNode> RewriteRecursive(ExpNode node, RewriteRule[] rules)
+    public static SolverResult<ExpNode> RewriteRecursive(ExpNode node, RewriteRule[] rules, int timeout = 100)
     {
         SolverResult<ExpNode> rslt = new SolverResult<ExpNode>(node, false, false);
         bool pendingChanges = true;
         bool recurse = true;
         bool transformed = false;
         bool transformedChildren = false;
-        //TODO add a timeout to prevent freezing
+        int counter = 0;
         while (pendingChanges)
         {
+            //TODO improve timeout, eg. calculate based on equation size and/or include runtime based timeout
+            counter++;
+            if (counter > timeout)
+            {
+                return new SolverResult<ExpNode>(new SolverError(SolverError.ErrorType.InternalError, "Solver timeout after " + timeout + " iterations", node));
+            }
             if (recurse)
             {
                 rslt.MergePeerStatus(rslt.result!.TransformChildren((inner, failEarly) => RewriteRecursive(inner, rules), true));
