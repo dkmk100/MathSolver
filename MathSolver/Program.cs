@@ -8,7 +8,18 @@ class Program
     {
         string mode = args[0];
         Stream reader;
-        if (mode == "file")
+        if (mode == "help" || mode == "-h" || mode == "--help")
+        {
+            Console.WriteLine("First console argument is the mode. Modes available: ");
+            Console.WriteLine("file, console, interactive");
+            Console.WriteLine("Second console argument is the input, eg. input file path");
+            return 0;
+        }
+        else if (mode == "interactive")
+        {
+            return InteractiveLoop();
+        }
+        else if (mode == "file")
         {
             reader = new FileStream(args[1], FileMode.Open);
         }
@@ -34,15 +45,56 @@ class Program
         else
         {
             Console.Error.WriteLine("unknown input mode: " + mode);
+            Console.WriteLine("Modes available: file, console, interactive");
             return -1;
         }
 
+        //process 
         Console.Write("input text: ");
         Console.Write(new StreamReader(reader).ReadToEnd());
         reader.Seek(0, SeekOrigin.Begin);
+        return ProcessInput(reader);
+    }
+
+    private static int InteractiveLoop()
+    {
+        Console.WriteLine("Begin interactive mode");
+        while (true)
+        {
+            Console.WriteLine();
+            Console.WriteLine("Input solver command, or write 'help' for more info");
+            Console.Write("> ");
+            string? input = Console.ReadLine();
+            if (input == null || input == "exit")
+            {
+                return 0;
+            }
+            else if (input == "help")
+            {
+                Console.WriteLine("Two commands are currently supported: Simplify{<expression>} and Solve{<equation>, <variable>}");
+                Console.WriteLine("Input must be one of the above commands");
+                Console.WriteLine("Basic math operations are supported, such as addition, multiplication, and some exponents");
+                Console.WriteLine("Variables can be multiple characters long, and a multiplication symbol * is required to multiply them");
+                Console.WriteLine("To exit interactive mode, write 'exit'");
+            }
+            else
+            {
+                Stream reader = new MemoryStream(Encoding.UTF8.GetBytes(input));
+                //not exiting early on error is intentional; interactive mode is more useful if you can keep using it
+                int ret = ProcessInput(reader);
+                if (ret != 0)
+                {
+                    Console.WriteLine("If you're stuck, write 'help' for basic info");
+                }
+                reader.Dispose();
+            }
+        }
+    }
+
+    private static int ProcessInput(Stream reader)
+    {
         Console.WriteLine();
         List<LexToken> tokens = Lexer.Tokenize(new StreamReader(reader));
-
         //TODO better error handling.
         RootNode tree;
         try
