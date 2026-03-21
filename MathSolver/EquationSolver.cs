@@ -85,8 +85,8 @@ class EquationSolver
         }
         else if (inRight)
         {
-            source = left.result!;
-            dest = right.result!;
+            source = right.result!;
+            dest = left.result!;
         }
         else
         {

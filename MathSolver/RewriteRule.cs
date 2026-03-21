@@ -22,6 +22,20 @@ interface RewriteRule
                     var val = new BigFraction(num.value.Denominator(), num.value.Numerator());
                     return new SolverResult<ExpNode>(new ExpNode_Num(val), true, false);
                 }
+                else if (inv.inner is ExpNode_Pow innerPow)
+                {
+                    //we know the inner value isn't a number; if it
+                    ExpNode right;
+                    if (innerPow.right is ExpNode_Num innerNum)
+                    {
+                        right = new ExpNode_Num(innerNum.value * new BigFraction(-1, 1));
+                    }
+                    else
+                    {
+                        right = new ExpNode_Times([new ExpNode_Num(new BigFraction(-1, 1)), innerPow.right]);
+                    }
+                    return new SolverResult<ExpNode>(new ExpNode_Pow(innerPow.left, right), true, false);
+                }
                 else
                 {
                     return new SolverResult<ExpNode>(node, false, false);
@@ -81,7 +95,7 @@ interface RewriteRule
                     {
                         others.Add(new ExpNode_Num(val));
                     }
-                    return new SolverResult<ExpNode>(new ExpNode_Times(others.ToArray()), true, false);
+                    return new SolverResult<ExpNode>(ExpNode_Times.Collapsed(others), true, false);
                 }
             }
             else if (node is ExpNode_Plus p)
@@ -115,7 +129,7 @@ interface RewriteRule
                     {
                         others.Add(new ExpNode_Num(val));
                     }
-                    return new SolverResult<ExpNode>(new ExpNode_Plus(others.ToArray()), true, false);
+                    return new SolverResult<ExpNode>(ExpNode_Plus.Collapsed(others), true, false);
                 }
             }
             return new SolverResult<ExpNode>(node, false, false);
@@ -207,18 +221,21 @@ interface RewriteRule
             if (node is ExpNode_Times t)
             {
                 List<ExpNode> plainChildren = new List<ExpNode>();
-                Dictionary<string, int> varChildren = new Dictionary<string, int>();
+                Dictionary<string, BigFraction> varChildren = new Dictionary<string, BigFraction>();
+                Dictionary<string, int> numSources = new Dictionary<string, int>();
                 foreach (var child in t.nodes)
                 {
                     if (child is ExpNode_Var v)
                     {
                         if (varChildren.ContainsKey(v.name))
                         {
-                            varChildren[v.name] += 1;
+                            varChildren[v.name] += new BigFraction(1, 1);
+                            numSources[v.name] += 1;
                         }
                         else
                         {
-                            varChildren.Add(v.name, 1);
+                            varChildren.Add(v.name, new BigFraction(1, 1));
+                            numSources.Add(v.name, 1);
                         }
                     }
                     else if (child is ExpNode_Invert inv)
@@ -227,16 +244,34 @@ interface RewriteRule
                         {
                             if (varChildren.ContainsKey(innerVar.name))
                             {
-                                varChildren[innerVar.name] -= 1;
+                                varChildren[innerVar.name] -= new BigFraction(1, 1);
+                                numSources[innerVar.name] += 1;
                             }
                             else
                             {
-                                varChildren.Add(innerVar.name, -1);
+                                varChildren.Add(innerVar.name, new BigFraction(-1, 1));
+                                numSources.Add(innerVar.name, 1);
                             }
                         }
                         else
                         {
                             plainChildren.Add(child);
+                        }
+                    }
+                    else if (child is ExpNode_Pow innerPow)
+                    {
+                        if (innerPow.left is ExpNode_Var innerVar && innerPow.right is ExpNode_Num innerNum)
+                        {
+                            if (varChildren.ContainsKey(innerVar.name))
+                            {
+                                varChildren[innerVar.name] += innerNum.value;
+                                numSources[innerVar.name] += 1;
+                            }
+                            else
+                            {
+                                varChildren.Add(innerVar.name, innerNum.value);
+                                numSources.Add(innerVar.name, 1);
+                            }
                         }
                     }
                     else
@@ -249,26 +284,30 @@ interface RewriteRule
                 bool changed = false;
                 foreach (var (v, count) in varChildren)
                 {
-                    if (count == 0)
+                    if (count.IsZero)
                     {
                         changed = true;
                         //cancel out, nothing to do here
                     }
-                    else if (count == 1)
+                    else if (count.IsOne)
                     {
                         //add back variable
                         plainChildren.Add(new ExpNode_Var(v, null));
                     }
-                    else if (count == -1)
+                    else if (count == new BigFraction(-1, 1))
                     {
                         //add back 1/variable
                         plainChildren.Add(new ExpNode_Invert(new ExpNode_Var(v, null)));
                     }
                     else
                     {
-                        changed = true;
+                        //prevent infinite loop with exponents
+                        if (numSources[v] > 1)
+                        {
+                            changed = true;
+                        }
                         //add in v ^ count
-                        plainChildren.Add(new ExpNode_Pow(new ExpNode_Var(v, null), new ExpNode_Num(new BigFraction(count, 1))));
+                        plainChildren.Add(new ExpNode_Pow(new ExpNode_Var(v, null), new ExpNode_Num(count)));
                     }
                 }
 
