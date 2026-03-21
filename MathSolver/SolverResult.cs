@@ -9,6 +9,10 @@ struct SolverResult<T> where T : class
         this.result = val;
         this.transformed = transformed;
         this.transformedChildren = transformedChildren;
+        if (transformed || transformedChildren)
+        {
+
+        }
         this.errors = new List<SolverError>();
     }
     public SolverResult(SolverError error)

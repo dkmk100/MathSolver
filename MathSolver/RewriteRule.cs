@@ -42,22 +42,52 @@ interface RewriteRule
             else if (node is ExpNode_Times t)
             {
                 BigFraction val = new BigFraction(1, 1);
+                List<ExpNode> others = new List<ExpNode>();
+                bool transformed = false;
                 foreach (var child in t.nodes)
                 {
                     if (child is ExpNode_Num num)
                     {
                         val *= num.value;
                     }
+                    else if (child is ExpNode_Negate innerNeg)
+                    {
+                        val *= new BigFraction(-1, 1);
+                        others.Add(innerNeg.inner);
+                        transformed = true;
+                    }
                     else
                     {
-                        return new SolverResult<ExpNode>(node, false, false);
+                        others.Add(child);
                     }
                 }
-                return new SolverResult<ExpNode>(new ExpNode_Num(val), true, false);
+                if (others.Count == 0)
+                {
+                    return new SolverResult<ExpNode>(new ExpNode_Num(val), true, false);
+                }
+                else if (others.Count >= t.nodes.Length - 1 && !transformed)
+                {
+                    return new SolverResult<ExpNode>(node, false, false);
+                }
+                else
+                {
+                    //negation is a special case
+                    if (val == new BigFraction(-1, 1) && others.Count == 1)
+                    {
+                        return new SolverResult<ExpNode>(new ExpNode_Negate(others[0]), true, false);
+                    }
+                    //multiplying by one is a no-op
+                    else if (!val.IsOne)
+                    {
+                        others.Add(new ExpNode_Num(val));
+                    }
+                    return new SolverResult<ExpNode>(new ExpNode_Times(others.ToArray()), true, false);
+                }
             }
             else if (node is ExpNode_Plus p)
             {
                 BigFraction val = new BigFraction(0, 1);
+                List<ExpNode> others = new List<ExpNode>();
                 foreach (var child in p.nodes)
                 {
                     if (child is ExpNode_Num num)
@@ -66,10 +96,27 @@ interface RewriteRule
                     }
                     else
                     {
-                        return new SolverResult<ExpNode>(node, false, false);
+                        others.Add(child);
+
                     }
                 }
-                return new SolverResult<ExpNode>(new ExpNode_Num(val), true, false);
+                if (others.Count == 0)
+                {
+                    return new SolverResult<ExpNode>(new ExpNode_Num(val), true, false);
+                }
+                else if (others.Count == p.nodes.Length || others.Count == p.nodes.Length - 1)
+                {
+                    return new SolverResult<ExpNode>(node, false, false);
+                }
+                else
+                {
+                    //adding zero is a no-op
+                    if (!val.IsZero)
+                    {
+                        others.Add(new ExpNode_Num(val));
+                    }
+                    return new SolverResult<ExpNode>(new ExpNode_Plus(others.ToArray()), true, false);
+                }
             }
             return new SolverResult<ExpNode>(node, false, false);
         }
@@ -161,28 +208,9 @@ interface RewriteRule
             {
                 List<ExpNode> plainChildren = new List<ExpNode>();
                 Dictionary<string, int> varChildren = new Dictionary<string, int>();
-                bool negate = false;
-                int numSwaps = 0;
                 foreach (var child in t.nodes)
                 {
-                    if (child is ExpNode_Num num)
-                    {
-                        if (num.value.IsOne)
-                        {
-                            //multiplication by one is a no-op
-                        }
-                        else
-                        {
-                            if (num.value == new BigFraction(-1, 1))
-                            {
-                                negate = !negate;
-                                numSwaps += 1;
-                            }
-                            plainChildren.Add(child);
-                        }
-
-                    }
-                    else if (child is ExpNode_Var v)
+                    if (child is ExpNode_Var v)
                     {
                         if (varChildren.ContainsKey(v.name))
                         {
@@ -214,39 +242,6 @@ interface RewriteRule
                     else
                     {
                         plainChildren.Add(child);
-                    }
-                }
-
-                if (numSwaps == t.nodes.Length - 1)
-                {
-                    //special case: negating an otherwise plain multiplication
-                    foreach (var child in t.nodes)
-                    {
-                        if (child is ExpNode_Num n)
-                        {
-                            if (n.value != new BigFraction(-1, 1))
-                            {
-                                if (negate)
-                                {
-                                    return new SolverResult<ExpNode>(ExpNode_Negate.Collapsed(child), true, true);
-                                }
-                                else
-                                {
-                                    return new SolverResult<ExpNode>(child, true, false);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            if (negate)
-                            {
-                                return new SolverResult<ExpNode>(ExpNode_Negate.Collapsed(child), true, true);
-                            }
-                            else
-                            {
-                                return new SolverResult<ExpNode>(child, true, false);
-                            }
-                        }
                     }
                 }
 
@@ -282,22 +277,21 @@ interface RewriteRule
             else if (node is ExpNode_Plus p)
             {
                 List<ExpNode> plainChildren = new List<ExpNode>();
-                Dictionary<string, int> varChildren = new Dictionary<string, int>();
+                Dictionary<string, BigFraction> varChildren = new Dictionary<string, BigFraction>();
+                Dictionary<string, int> numSources = new Dictionary<string, int>();
                 foreach (var child in p.nodes)
                 {
-                    if (child is ExpNode_Num num && num.value.IsZero)
-                    {
-                        //addition by zero is a no-op
-                    }
-                    else if (child is ExpNode_Var v)
+                    if (child is ExpNode_Var v)
                     {
                         if (varChildren.ContainsKey(v.name))
                         {
-                            varChildren[v.name] += 1;
+                            varChildren[v.name] += new BigFraction(1, 1);
+                            numSources[v.name] += 1;
                         }
                         else
                         {
-                            varChildren.Add(v.name, 1);
+                            varChildren.Add(v.name, new BigFraction(1, 1));
+                            numSources.Add(v.name, 1);
                         }
                     }
                     else if (child is ExpNode_Negate neg)
@@ -306,11 +300,51 @@ interface RewriteRule
                         {
                             if (varChildren.ContainsKey(innerVar.name))
                             {
-                                varChildren[innerVar.name] -= 1;
+                                varChildren[innerVar.name] -= new BigFraction(1, 1);
+                                numSources[innerVar.name] += 1;
                             }
                             else
                             {
-                                varChildren.Add(innerVar.name, -1);
+                                varChildren.Add(innerVar.name, new BigFraction(-1, 1));
+                                numSources.Add(innerVar.name, 1);
+                            }
+                        }
+                        else
+                        {
+                            plainChildren.Add(child);
+                        }
+                    }
+                    else if (child is ExpNode_Times innerTimes && innerTimes.nodes.Length == 2)
+                    {
+                        //TODO replace this dumb logic with a recursive scan for var values
+                        if (innerTimes.nodes[0] is ExpNode_Num && innerTimes.nodes[1] is ExpNode_Var)
+                        {
+                            var num = innerTimes.nodes[0] as ExpNode_Num;
+                            var innerVar = innerTimes.nodes[1] as ExpNode_Var;
+                            if (varChildren.ContainsKey(innerVar.name))
+                            {
+                                varChildren[innerVar.name] += num.value;
+                                numSources[innerVar.name] += 1;
+                            }
+                            else
+                            {
+                                varChildren.Add(innerVar.name, num.value);
+                                numSources.Add(innerVar.name, 1);
+                            }
+                        }
+                        else if (innerTimes.nodes[1] is ExpNode_Num && innerTimes.nodes[0] is ExpNode_Var)
+                        {
+                            var num = innerTimes.nodes[1] as ExpNode_Num;
+                            var innerVar = innerTimes.nodes[0] as ExpNode_Var;
+                            if (varChildren.ContainsKey(innerVar.name))
+                            {
+                                varChildren[innerVar.name] += num.value;
+                                numSources[innerVar.name] += 1;
+                            }
+                            else
+                            {
+                                varChildren.Add(innerVar.name, num.value);
+                                numSources.Add(innerVar.name, 1);
                             }
                         }
                         else
@@ -328,26 +362,30 @@ interface RewriteRule
                 bool changed = false;
                 foreach (var (v, count) in varChildren)
                 {
-                    if (count == 0)
+                    if (count.IsZero)
                     {
                         changed = true;
                         //cancel out, nothing to do here
                     }
-                    else if (count == 1)
+                    else if (count.IsOne)
                     {
                         //add back variable
                         plainChildren.Add(new ExpNode_Var(v, null));
                     }
-                    else if (count == -1)
+                    else if (count == new BigFraction(-1, 1))
                     {
                         //add back negated variable
                         plainChildren.Add(new ExpNode_Negate(new ExpNode_Var(v, null)));
                     }
                     else
                     {
-                        changed = true;
+                        //prevent infinite loop with multiplication
+                        if (numSources[v] > 1)
+                        {
+                            changed = true;
+                        }
                         //add in count * v
-                        plainChildren.Add(new ExpNode_Times([new ExpNode_Num(new BigFraction(count, 1)), new ExpNode_Var(v, null)]));
+                        plainChildren.Add(new ExpNode_Times([new ExpNode_Num(count), new ExpNode_Var(v, null)]));
                     }
                 }
                 return new SolverResult<ExpNode>(ExpNode_Plus.Collapsed(plainChildren), changed, changed);

@@ -21,15 +21,29 @@ class EquationSolver
     //destructive on the root node, like other transformers
     public static SolverResult<ExpNode> Solve(RootNode_Solve root)
     {
+        RewriteRule[] simplifyRules =
+        [
+            new RewriteRule.CollapseNumbers(),
+            new RewriteRule.DistributeTimes(),
+            new RewriteRule.CollapseSymbolic(),
+        ];
+
+        //start by simplifying expressions to group like terms
+        //necessary because solver doesn't like vars in multiple places
+        var left = MathEngine.RewriteRecursive(root.left, simplifyRules);
+        if (!left.Success()) { return left; }
+        var right = MathEngine.RewriteRecursive(root.right, simplifyRules);
+        if (!right.Success()) { return right; }
+
         VarFinder finder = new VarFinder();
         //scan vars on left tree
-        SolverResult<Dictionary<ExpNode, HashSet<string>>> varScan = ((TreeScanner<HashSet<string>>)finder).ScanRecursive(root.left, true);
+        SolverResult<Dictionary<ExpNode, HashSet<string>>> varScan = ((TreeScanner<HashSet<string>>)finder).ScanRecursive(left.result!, true);
         if (!varScan.Success())
         {
             return new SolverResult<ExpNode>().MergePeerStatus(varScan);
         }
         //scan right tree in on same dictionary, prevents annoying duplication later
-        varScan = ((TreeScanner<HashSet<string>>)finder).ScanRecursive(root.right, true, varScan.result!);
+        varScan = ((TreeScanner<HashSet<string>>)finder).ScanRecursive(right.result!, true, varScan.result!);
         if (!varScan.Success())
         {
             return new SolverResult<ExpNode>().MergePeerStatus(varScan);
@@ -52,8 +66,10 @@ class EquationSolver
         });
         */
 
-        bool inLeft = vars[root.left].Contains(root.var);
-        bool inRight = vars[root.right].Contains(root.var);
+
+
+        bool inLeft = vars[left.result!].Contains(root.var);
+        bool inRight = vars[right.result!].Contains(root.var);
         ExpNode source;
         ExpNode dest;
 
@@ -64,19 +80,19 @@ class EquationSolver
         }
         else if (inLeft)
         {
-            source = root.left;
-            dest = root.right;
+            source = left.result!;
+            dest = right.result!;
         }
         else if (inRight)
         {
-            source = root.right;
-            dest = root.left;
+            source = left.result!;
+            dest = right.result!;
         }
         else
         {
             return new SolverResult<ExpNode>(new SolverError(SolverError.ErrorType.SolveError, "Variable not found in equation", null));
         }
-        return SolveSimple(root.left, root.right, root.var, vars, null);
+        return SolveSimple(source, dest, root.var, vars, null);
     }
     private static SolverResult<ExpNode> SolveSimple(ExpNode source, ExpNode dest, string var, Dictionary<ExpNode, HashSet<string>> vars, ErrorSource? parent)
     {
