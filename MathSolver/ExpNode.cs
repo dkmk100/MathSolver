@@ -4,7 +4,8 @@ using System.Text;
 
 interface ExpNode : TreeNode<ExpNode, ExpNode>
 {
-    //methods are inherited from TreeNode
+    //most methods are inherited from TreeNode
+    public string VeryPrettyPrint();
 }
 
 sealed class ExpNode_Pow : ExpNode
@@ -21,7 +22,14 @@ sealed class ExpNode_Pow : ExpNode
         int p = Precedence();
         string l = left.Precedence() > p ? left.PrettyPrint() : "(" + left.PrettyPrint() + ")";
         string r = right.Precedence() > p ? right.PrettyPrint() : "(" + right.PrettyPrint() + ")";
-        return l + " ^ " + r;
+        return l + "^" + r;
+    }
+    public string VeryPrettyPrint()
+    {
+        int p = Precedence();
+        string l = left.Precedence() > p ? left.VeryPrettyPrint() : "(" + left.VeryPrettyPrint() + ")";
+        string r = right.Precedence() > p ? right.VeryPrettyPrint() : "(" + right.VeryPrettyPrint() + ")";
+        return l + "^" + r;
     }
     public int Precedence()
     {
@@ -105,6 +113,91 @@ sealed class ExpNode_Times : ExpNode
             if (i < nodes.Length - 1)
             {
                 sb.Append(" * ");
+            }
+        }
+        return sb.ToString();
+    }
+    public string VeryPrettyPrint()
+    {
+        //try to format it as a fraction so it looks better
+        //is this overreach for a print function? no idea
+        //TODO reconsider the above
+        List<ExpNode> num = new List<ExpNode>();
+        List<ExpNode> den = new List<ExpNode>();
+        foreach (var child in nodes)
+        {
+            if (child is ExpNode_Invert inv)
+            {
+                den.Add(inv.inner);
+            }
+            else
+            {
+                num.Add(child);
+            }
+        }
+
+        int p = Precedence();
+        StringBuilder sb = new StringBuilder();
+        if (den.Count == 0)
+        {
+            //print normally if there's no denominator
+            for (int i = 0; i < nodes.Length; i++)
+            {
+                var inner = nodes[i];
+                string str = inner.Precedence() > p ? inner.VeryPrettyPrint() : "(" + inner.VeryPrettyPrint() + ")";
+                sb.Append(str);
+                if (i < nodes.Length - 1)
+                {
+                    sb.Append(" * ");
+                }
+            }
+        }
+        else
+        {
+            //print as a fraction
+            if (num.Count == 0)
+            {
+                sb.Append("1/");
+            }
+            else
+            {
+                if (num.Count > 1)
+                {
+                    sb.Append("(");
+                }
+                for (int i = 0; i < num.Count; i++)
+                {
+                    var inner = num[i];
+                    string str = inner.Precedence() > p ? inner.VeryPrettyPrint() : "(" + inner.VeryPrettyPrint() + ")";
+                    sb.Append(str);
+                    if (i < num.Count - 1)
+                    {
+                        sb.Append(" * ");
+                    }
+                }
+                if (num.Count > 1)
+                {
+                    sb.Append(")");
+                }
+                sb.Append("/");
+            }
+            if (den.Count > 1)
+            {
+                sb.Append("(");
+            }
+            for (int i = 0; i < den.Count; i++)
+            {
+                var inner = den[i];
+                string str = inner.Precedence() > p ? inner.VeryPrettyPrint() : "(" + inner.VeryPrettyPrint() + ")";
+                sb.Append(str);
+                if (i < den.Count - 1)
+                {
+                    sb.Append(" * ");
+                }
+            }
+            if (den.Count > 1)
+            {
+                sb.Append(")");
             }
         }
         return sb.ToString();
@@ -200,6 +293,22 @@ sealed class ExpNode_Plus : ExpNode
         }
         return sb.ToString();
     }
+    public string VeryPrettyPrint()
+    {
+        int p = Precedence();
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < nodes.Length; i++)
+        {
+            var inner = nodes[i];
+            string str = inner.Precedence() > p ? inner.VeryPrettyPrint() : "(" + inner.VeryPrettyPrint() + ")";
+            sb.Append(str);
+            if (i < nodes.Length - 1)
+            {
+                sb.Append(" + ");
+            }
+        }
+        return sb.ToString();
+    }
     public int Precedence()
     {
         return 100;
@@ -262,6 +371,17 @@ sealed class ExpNode_Negate : ExpNode
     {
         return "-(" + inner.PrettyPrint() + ")";
     }
+    public string VeryPrettyPrint()
+    {
+        if (inner.Precedence() > Precedence())
+        {
+            return "-" + inner.VeryPrettyPrint();
+        }
+        else
+        {
+            return "-(" + inner.VeryPrettyPrint() + ")";
+        }
+    }
     public int Precedence()
     {
         return 1000;
@@ -317,9 +437,24 @@ sealed class ExpNode_Invert : ExpNode
     {
         return "(" + inner.PrettyPrint() + ")^-1";
     }
+    public string VeryPrettyPrint()
+    {
+        if (inner is ExpNode_Num num)
+        {
+            return "1/(" + inner.VeryPrettyPrint() + ")";
+        }
+        else if (inner.Precedence() > Precedence())
+        {
+            return "1/" + inner.PrettyPrint();
+        }
+        else
+        {
+            return "1/(" + inner.VeryPrettyPrint() + ")";
+        }
+    }
     public int Precedence()
     {
-        return 1000;
+        return 2000;
     }
     public IEnumerable<ExpNode> Children()
     {
@@ -356,9 +491,13 @@ sealed record class ExpNode_Num : ExpNode
     {
         return value.ToString();
     }
+    public string VeryPrettyPrint()
+    {
+        return value.ToString();
+    }
     public int Precedence()
     {
-        return 1000;
+        return 5000;
     }
     public IEnumerable<ExpNode> Children()
     {
@@ -394,9 +533,13 @@ sealed class ExpNode_Var : ExpNode
     {
         return name + (subscript == null ? "" : "_(" + subscript.PrettyPrint() + ")");
     }
+    public string VeryPrettyPrint()
+    {
+        return name + (subscript == null ? "" : "_(" + subscript.VeryPrettyPrint() + ")");
+    }
     public int Precedence()
     {
-        return 1000;
+        return 5000;
     }
     public IEnumerable<ExpNode> Children()
     {

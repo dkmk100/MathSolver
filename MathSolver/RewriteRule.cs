@@ -199,14 +199,27 @@ interface RewriteRule
                         transformed.Add(ExpNode_Negate.Collapsed(child));
                     }
                     //return as new addition
-                    return new SolverResult<ExpNode>(new ExpNode_Plus(transformed.ToArray()), true, true);
+                    return new SolverResult<ExpNode>(ExpNode_Plus.Collapsed(transformed), true, true);
+                }
+            }
+            else if (node is ExpNode_Invert inv)
+            {
+                if (inv.inner is ExpNode_Times innerTimes)
+                {
+                    List<ExpNode> transformed = new List<ExpNode>();
+                    foreach (var child in innerTimes.nodes)
+                    {
+                        transformed.Add(ExpNode_Invert.Collapsed(child));
+                    }
+                    //return as new addition
+                    return new SolverResult<ExpNode>(ExpNode_Times.Collapsed(transformed), true, true);
                 }
             }
             return new SolverResult<ExpNode>(node, false, false);
         }
         public bool CanApply(ExpNode node)
         {
-            return node is ExpNode_Times || node is ExpNode_Invert;
+            return node is ExpNode_Times || node is ExpNode_Negate || node is ExpNode_Invert;
         }
     }
 

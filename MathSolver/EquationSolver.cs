@@ -35,6 +35,9 @@ class EquationSolver
         var right = MathEngine.RewriteRecursive(root.right, simplifyRules);
         if (!right.Success()) { return right; }
 
+        //TODO instead of just simplifying, I should just use a separate internal representation for equation solving
+        //a structure that enforces more rigidity and less ambiguity
+
         VarFinder finder = new VarFinder();
         //scan vars on left tree
         SolverResult<Dictionary<ExpNode, HashSet<string>>> varScan = ((TreeScanner<HashSet<string>>)finder).ScanRecursive(left.result!, true);
@@ -92,10 +95,13 @@ class EquationSolver
         {
             return new SolverResult<ExpNode>(new SolverError(SolverError.ErrorType.SolveError, "Variable not found in equation", null));
         }
+
         return SolveSimple(source, dest, root.var, vars, null);
     }
     private static SolverResult<ExpNode> SolveSimple(ExpNode source, ExpNode dest, string var, Dictionary<ExpNode, HashSet<string>> vars, ErrorSource? parent)
     {
+        //TODO track branching and invalid values, eg. stemming from division
+
         if (source is ExpNode_Var v)
         {
             //equation is solved

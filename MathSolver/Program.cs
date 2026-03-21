@@ -107,6 +107,7 @@ class Program
             Console.WriteLine(e.Message);
             return -1;
         }
+        //fancy printing isn't as useful for debugging
         Console.WriteLine("parsed: " + tree.PrettyPrint());
 
         RewriteRule[] simplifyRules =
@@ -123,7 +124,7 @@ class Program
 
             if (eval.Success())
             {
-                Console.WriteLine("eval: " + eval.result!.PrettyPrint());
+                Console.WriteLine("eval: " + eval.result!.VeryPrettyPrint());
             }
             else
             {
@@ -141,12 +142,13 @@ class Program
             SolverResult<ExpNode> eval = EquationSolver.Solve(solve);
             if (eval.Success())
             {
+                //fancy printing is *more* confusing when unsimplified
                 Console.WriteLine("eval: {0} = {1}", solve.var, eval.result!.PrettyPrint());
                 SolverResult<ExpNode> simplified = MathEngine.RewriteRecursive(eval.result!.CopyRecursive(), simplifyRules);
 
                 if (simplified.Success())
                 {
-                    Console.WriteLine("simplified: {0} = {1}", solve.var, simplified.result!.PrettyPrint());
+                    Console.WriteLine("simplified: {0} = {1}", solve.var, simplified.result!.VeryPrettyPrint());
                 }
                 else
                 {
