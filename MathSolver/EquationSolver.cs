@@ -109,6 +109,20 @@ class EquationSolver
         {
             return SolveSimpleGrouped(source, dest, var, vars, parent, ExpNode_Invert.Collapsed, ExpNode_Times.Collapsed);
         }
+        else if (source is ExpNode_Negate neg)
+        {
+            var node = ExpNode_Negate.Collapsed(dest);
+            HashSet<string> newVars = [.. vars[dest]];
+            vars.Add(node, newVars);
+            return SolveSimple(neg.inner, node, var, vars, neg);
+        }
+        else if (source is ExpNode_Invert inv)
+        {
+            var node = ExpNode_Invert.Collapsed(dest);
+            HashSet<string> newVars = [.. vars[dest]];
+            vars.Add(node, newVars);
+            return SolveSimple(inv.inner, node, var, vars, inv);
+        }
         else
         {
             return new SolverResult<ExpNode>(new SolverError(SolverError.ErrorType.InternalError, "Unknown expression type", source));
